@@ -15,6 +15,80 @@ qemu-system-aarch64
   + 当前设备树里的 recovery root overlay
 ```
 
+## Supported targets
+
+  当前设备树对应的是 Google `emu64a`，产品名是：
+
+  ```text
+  twrp_emu64a
+  ```
+
+  构建后的运行目标不是实体手机，而是基于 `goldfish/ranchu` 的 arm64 模拟环境。
+
+## 编译流程
+
+  这套设备树更适合放进标准的 TWRP / AOSP 源码树里构建。典型目录应是：
+
+  ```text
+  device/google/emu64a
+  ```
+
+  如果你是本地在 macOS 改设备树、远端 Linux 编译，当前目录自带的 `sync.sh` 就是往这个路径同步：
+
+  ```text
+  /home/laurie/twrp/device/google/emu64a/
+  ```
+
+### 1. 准备源码树
+
+  下面是一个最小化的初始化流程，重点是把当前设备树放到 `device/google/emu64a`：
+
+  ```bash
+  mkdir twrp-work && cd twrp-work
+  repo init --depth=1 -u https://github.com/TWRP-Test/platform_manifest_twrp_aosp.git -b twrp-16.0
+  repo sync
+  mkdir -p device/google
+  ```
+
+  然后把这个设备树放进去：
+
+  ```text
+  device/google/emu64a
+  ```
+
+  如果你当前就在这个仓库里维护它，直接用本目录下的 `sync.sh` 同步到编译机即可。
+
+### 2. 开始编译
+
+  进入源码树后执行：
+
+  ```bash
+  source build/envsetup.sh
+  lunch twrp_emu64a
+  m recoveryimage
+  ```
+
+### 3. 取回产物
+
+  编译完成后，常用产物在：
+
+  ```text
+  out/target/product/emu64a/recovery.img
+  out/target/product/emu64a/ramdisk-recovery.cpio
+  ```
+
+  对当前这条 QEMU 启动链来说，真正会被 `launch_qemu.sh` 直接使用的是：
+
+  ```text
+  out/target/product/emu64a/ramdisk-recovery.cpio
+  ```
+
+  通常做法是把它拷回仓库根目录，命名为：
+
+  ```text
+  ramdisk-recovery.cpio
+  ```
+
 ## 前提
 
 需要准备：
