@@ -33,7 +33,9 @@ qemu-system-aarch64
   device/google/emu64a
   ```
 
-  如果你是本地在 macOS 改设备树、远端 Linux 编译，当前目录自带的 `sync.sh` 就是往这个路径同步：
+  如果你是本地在 macOS 改设备树、远端 Linux 编译，当前目录自带的 `sync.sh` 可以把它同步到远端源码树。这个脚本只是个人工作流辅助，不是启动 QEMU 的必要条件。
+
+  当前脚本默认同步到：
 
   ```text
   /home/laurie/twrp/device/google/emu64a/
@@ -56,7 +58,7 @@ qemu-system-aarch64
   device/google/emu64a
   ```
 
-  如果你当前就在这个仓库里维护它，直接用本目录下的 `sync.sh` 同步到编译机即可。
+  如果你已经有自己的源码树路径，直接把本目录内容拷过去即可，不需要照搬这里的远端路径。
 
 ### 2. 开始编译
 
@@ -83,10 +85,11 @@ qemu-system-aarch64
   out/target/product/emu64a/ramdisk-recovery.cpio
   ```
 
-  通常做法是把它拷回仓库根目录，命名为：
+  推荐做法是把它放到下面两个位置之一：
 
   ```text
-  ramdisk-recovery.cpio
+  device_tree/twrp_device_google_emu64a/ramdisk-recovery.cpio
+  device_tree/twrp_device_google_emu64a/artifacts/ramdisk-recovery.cpio
   ```
 
 ## 前提
@@ -119,15 +122,27 @@ kernel-ranchu
 ramdisk.img
 ```
 
-## recovery 产物
+## 目录内运行约定
 
-当前启动脚本默认读取仓库根目录下的：
+当前启动脚本默认使用这个目录下的本地产物：
 
 ```text
-ramdisk-recovery.cpio
+./ramdisk-recovery.cpio
+./artifacts/ramdisk-recovery.cpio
 ```
 
-如果你是在远端编译完成后拉回本地，可以直接把它放到仓库根目录。
+运行时文件也默认放到：
+
+```text
+./artifacts/qemu_userdata.img
+./artifacts/qemu_boot.log
+```
+
+也就是说，最小可运行集合是：
+
+1. 当前设备树目录
+2. Android SDK 的 `kernel-ranchu` 和 `ramdisk.img`
+3. 当前目录或 `artifacts` 目录里的 `ramdisk-recovery.cpio`
 
 ## 启动方法
 
@@ -141,8 +156,8 @@ bash launch_qemu.sh twrp
 这会启动：
 
 1. `kernel-ranchu`
-2. 仓库根目录下的 `ramdisk-recovery.cpio`
-3. 仓库根目录下的 `qemu_userdata.img`
+2. 当前目录或 `artifacts` 目录下的 `ramdisk-recovery.cpio`
+3. 当前目录下 `artifacts` 里的 `qemu_userdata.img`
 
 如果 `qemu_userdata.img` 不存在，脚本会自动创建一个 8G 的 raw 数据盘。
 
@@ -176,10 +191,10 @@ adb -s 127.0.0.1:5556 get-state
 
 ## 串口调试
 
-当前 `launch_qemu.sh` 默认把串口写到仓库根目录下的：
+当前 `launch_qemu.sh` 默认把串口写到：
 
 ```text
-qemu_boot.log
+artifacts/qemu_boot.log
 ```
 
 如果需要可交互串口调试，可以临时把脚本里的串口参数改成：
@@ -243,3 +258,13 @@ DATA_IMG=/your/qemu_userdata.img \
 LOG=/your/qemu_boot.log \
 bash launch_qemu.sh twrp
 ```
+
+## 还需要什么
+
+如果别人只拿到这个目录，离“直接跑起来”还需要补齐的只有这些外部条件：
+
+1. 本机安装 `qemu-system-aarch64`
+2. 本机有 Android 33 arm64 的 SDK system image
+3. 手里有编译出来的 `ramdisk-recovery.cpio`
+
+除了这三项，当前启动脚本已经不再要求依赖仓库根目录下的运行文件。
