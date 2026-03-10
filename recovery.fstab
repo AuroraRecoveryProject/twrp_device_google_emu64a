@@ -1,0 +1,5 @@
+# Android fstab — Google AVD arm64 (QEMU, no dynamic partitions)
+#
+# <src>                <mnt_point>  <type>  <mnt_flags>                                         <fs_mgr_flags>
+/dev/block/vdc        /data        ext4    noatime,nosuid,nodev,nomblk_io_submit,errors=panic   wait,check
+/devices/*/block/vdf  /sdcard      auto    defaults                                             voldmanaged=sdcard:auto
