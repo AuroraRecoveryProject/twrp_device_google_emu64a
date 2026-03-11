@@ -22,9 +22,29 @@ KERNEL=${KERNEL:-$SDK_DIR/kernel-ranchu}
 DATA_IMG=${DATA_IMG:-$ARTIFACTS_DIR/qemu_userdata.img}
 LOG=${LOG:-$ARTIFACTS_DIR/qemu_boot.log}
 
+HOST_ARCH=$(uname -m)
+CPU_MODEL=${CPU_MODEL:-}
+QEMU_ACCEL=${QEMU_ACCEL:-}
+
 if ! command -v qemu-system-aarch64 >/dev/null 2>&1; then
   echo "qemu-system-aarch64 不在 PATH 中" >&2
   exit 1
+fi
+
+if [ -z "$QEMU_ACCEL" ]; then
+  if [ "$HOST_ARCH" = "arm64" ] && qemu-system-aarch64 -accel help 2>/dev/null | grep -qx 'hvf'; then
+    QEMU_ACCEL=hvf
+  else
+    QEMU_ACCEL=tcg
+  fi
+fi
+
+if [ -z "$CPU_MODEL" ]; then
+  if [ "$QEMU_ACCEL" = "hvf" ]; then
+    CPU_MODEL=host
+  else
+    CPU_MODEL=max
+  fi
 fi
 
 mkdir -p "$ARTIFACTS_DIR"
@@ -63,9 +83,10 @@ fi
 
 : > "$LOG"
 
-qemu-system-aarch64 \
+nohup qemu-system-aarch64 \
   -machine virt \
-  -cpu max \
+  -accel "$QEMU_ACCEL" \
+  -cpu "$CPU_MODEL" \
   -smp 2 \
   -m 3072 \
   -kernel "$KERNEL" \
@@ -80,4 +101,9 @@ qemu-system-aarch64 \
   -device virtio-net-pci,netdev=net0 \
   -netdev user,id=net0,hostfwd=tcp::5556-:5555 \
   -serial file:"$LOG" \
-  -no-reboot
+  -no-reboot &
+echo "QEMU 启动中，日志输出到 $LOG"
+echo "可以通过以下命令查看日志："
+echo "  tail -f $LOG"
+sleep 3
+adb connect 127.0.0.1:5556
