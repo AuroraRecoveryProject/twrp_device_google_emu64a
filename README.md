@@ -15,82 +15,90 @@ qemu-system-aarch64
   + 当前设备树里的 recovery root overlay
 ```
 
+## 为什么编写这个设备树？
+
+在编写新的 REC 的过程中，我的设备长期处于 rec 模式，无法接收消息，也无法正常使用
+
+所以需要一个不依赖物理设备的调试环境
+
+而 [android_device_emulator_twrp](https://github.com/TeamWin/android_device_emulator_twrp) 的最后一次更新是在十年前
+
 ## Supported targets
 
-  当前设备树对应的是 Google `emu64a`，产品名是：
+当前设备树对应的是 Google `emu64a`，产品名是：
 
-  ```text
-  twrp_emu64a
-  ```
+```text
+twrp_emu64a
+```
 
-  构建后的运行目标不是实体手机，而是基于 `goldfish/ranchu` 的 arm64 模拟环境。
+构建后的运行目标不是实体手机，而是基于 `goldfish/ranchu` 的 arm64 模拟环境。
 
 ## 编译流程
 
-  这套设备树更适合放进标准的 TWRP / AOSP 源码树里构建。典型目录应是：
+这套设备树更适合放进标准的 TWRP / AOSP 源码树里构建。典型目录应是：
 
-  ```text
-  device/google/emu64a
-  ```
+```text
+device/google/emu64a
+```
 
-  如果你是本地在 macOS 改设备树、远端 Linux 编译，当前目录自带的 `sync.sh` 可以把它同步到远端源码树。这个脚本只是个人工作流辅助，不是启动 QEMU 的必要条件。
+如果你是本地在 macOS 改设备树、远端 Linux 编译，当前目录自带的 `sync.sh` 可以把它同步到远端源码树。这个脚本只是个人工作流辅助，不是启动 QEMU 的必要条件。
 
-  当前脚本默认同步到：
+当前脚本默认同步到：
 
-  ```text
-  /home/laurie/twrp/device/google/emu64a/
-  ```
+```text
+/home/laurie/twrp/device/google/emu64a/
+```
 
 ### 1. 准备源码树
 
-  下面是一个最小化的初始化流程，重点是把当前设备树放到 `device/google/emu64a`：
+下面是一个最小化的初始化流程，重点是把当前设备树放到 `device/google/emu64a`：
 
-  ```bash
-  mkdir twrp-work && cd twrp-work
-  repo init --depth=1 -u https://github.com/TWRP-Test/platform_manifest_twrp_aosp.git -b twrp-16.0
-  repo sync
-  mkdir -p device/google
-  ```
+```bash
+mkdir twrp-work && cd twrp-work
+repo init --depth=1 -u https://github.com/TWRP-Test/platform_manifest_twrp_aosp.git -b twrp-16.0
+repo sync
+mkdir -p device/google
+```
 
-  然后把这个设备树放进去：
+然后把这个设备树放进去：
 
-  ```text
-  device/google/emu64a
-  ```
+```text
+device/google/emu64a
+```
 
-  如果你已经有自己的源码树路径，直接把本目录内容拷过去即可，不需要照搬这里的远端路径。
+如果你已经有自己的源码树路径，直接把本目录内容拷过去即可，不需要照搬这里的远端路径。
 
 ### 2. 开始编译
 
-  进入源码树后执行：
+进入源码树后执行：
 
-  ```bash
-  source build/envsetup.sh
-  lunch twrp_emu64a
-  m recoveryimage
-  ```
+```bash
+source build/envsetup.sh
+lunch twrp_emu64a
+m recoveryimage
+```
 
 ### 3. 取回产物
 
-  编译完成后，常用产物在：
+编译完成后，常用产物在：
 
-  ```text
-  out/target/product/emu64a/recovery.img
-  out/target/product/emu64a/ramdisk-recovery.cpio
-  ```
+```text
+out/target/product/emu64a/recovery.img
+out/target/product/emu64a/ramdisk-recovery.cpio
+```
 
-  对当前这条 QEMU 启动链来说，真正会被 `launch_qemu.sh` 直接使用的是：
+对当前这条 QEMU 启动链来说，真正会被 `launch_qemu.sh` 直接使用的是：
 
-  ```text
-  out/target/product/emu64a/ramdisk-recovery.cpio
-  ```
+```text
+out/target/product/emu64a/ramdisk-recovery.cpio
+```
 
-  推荐做法是把它放到下面两个位置之一：
+推荐做法是把它放到下面两个位置之一：
 
-  ```text
-  device_tree/twrp_device_google_emu64a/ramdisk-recovery.cpio
-  device_tree/twrp_device_google_emu64a/artifacts/ramdisk-recovery.cpio
-  ```
+```text
+device_tree/twrp_device_google_emu64a/ramdisk-recovery.cpio
+device_tree/twrp_device_google_emu64a/artifacts/ramdisk-recovery.cpio
+```
 
 ## 前提
 
@@ -161,6 +169,8 @@ bash launch_qemu.sh twrp
 
 如果 `qemu_userdata.img` 不存在，脚本会自动创建一个 8G 的 raw 数据盘。
 
+在 Apple Silicon macOS 上，当前脚本会优先使用 `hvf` 硬件加速；只有不可用时才回退到 `tcg`。如果落到 `tcg`，TWRP 的整体响应会明显变慢。
+
 ## 启动正常系统
 
 如果只是验证 QEMU + 内核 + 显示链，不启动 TWRP，可以运行：
@@ -177,10 +187,11 @@ bash launch_qemu.sh
 当前脚本固定使用：
 
 1. `-machine virt`
-2. `-device virtio-gpu-pci,edid=on,xres=1280,yres=720`
-3. `-device virtio-net-pci`
-4. `hostfwd=tcp::5556-:5555`
-5. `-display cocoa,show-cursor=on`
+2. 优先 `-accel hvf`，否则回退 `tcg`
+3. `-device virtio-gpu-pci,edid=on,xres=1280,yres=720`
+4. `-device virtio-net-pci`
+5. `hostfwd=tcp::5556-:5555`
+6. `-display cocoa,show-cursor=on`
 
 也就是说，宿主机上 ADB 应连接：
 
@@ -256,6 +267,8 @@ SDK_DIR=/your/sdk/path \
 RAMDISK=/your/ramdisk-recovery.cpio \
 DATA_IMG=/your/qemu_userdata.img \
 LOG=/your/qemu_boot.log \
+QEMU_ACCEL=tcg \
+CPU_MODEL=max \
 bash launch_qemu.sh twrp
 ```
 
