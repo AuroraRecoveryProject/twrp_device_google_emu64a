@@ -135,7 +135,6 @@ ramdisk.img
 当前启动脚本默认使用这个目录下的本地产物：
 
 ```text
-./ramdisk-recovery.cpio
 ./artifacts/ramdisk-recovery.cpio
 ```
 
